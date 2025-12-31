@@ -1,4 +1,4 @@
-import os
+import os, re
 import boto3
 from app.services.cosmos import CosmosService
 from dotenv import load_dotenv
@@ -61,6 +61,28 @@ def get_parent_id_by_psd(psd_number: str) -> str:
         logger.error(f"Error fetching parent ID for PSD {psd_number}: {str(e)}")
         raise
 
+def get_psd_by_sheet(filename: str) -> str:
+    """
+    Extract the PSD number from a filename in the format:
+    'LegalEntityMapping_SFDC-PSD-{number}_{timestamp}'
+    
+    Args:
+        filename (str): The input filename (can be with or without path)
+        
+    Returns:
+        str: The PSD number in format 'SFDC-PSD-{number}'
+        
+    Raises:
+        ValueError: If the filename doesn't match the expected pattern
+    """
+    # Match the pattern: LegalEntityMapping_SFDC-PSD-{numbers}_{numbers}
+    match = re.match(r'^LegalEntityMapping_(SFDC-PSD-\d+)_\d+', filename)
+    
+    if not match:
+        raise ValueError(f"Filename '{filename}' does not match expected pattern: 'LegalEntityMapping_SFDC-PSD-{{number}}_{{timestamp}}'")
+    
+    return match.group(1)
+
 def upload_sheets_to_s3(file_path: str, original_filename: str):
     """
     Upload an Excel sheet to S3 inside a folder named after the PSD number extracted from the original filename.
@@ -91,15 +113,3 @@ def upload_sheets_to_s3(file_path: str, original_filename: str):
     except Exception as e:
         logger.error(f"Failed to upload {original_filename} to S3: {e}")
         return None
-
-if __name__ == "__main__":
-    # Example usage
-    psd = input("Enter PSD number: ").strip()
-    if psd:
-        parent_id = get_parent_id_by_psd(psd)
-        if parent_id:
-            print(f"Main Parent ID: {parent_id}")
-        else:
-            print("No matching record found for the given PSD number.")
-    else:
-        print("No PSD number provided.")
