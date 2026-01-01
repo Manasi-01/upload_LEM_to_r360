@@ -126,3 +126,31 @@ def upload_sheet(file: UploadFile = File(...)):
             os.remove(tmp_path)
         except Exception:
             pass
+
+
+@router.get("/list-s3-files/")
+def list_s3_files():
+    import boto3
+    from config.s3_config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+    S3_BUCKET_NAME = 'monotype-r360-sheets'
+    session = boto3.Session(
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_REGION
+    )
+    s3 = session.client('s3')
+    files = []
+    continuation_token = None
+    while True:
+        if continuation_token:
+            response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, ContinuationToken=continuation_token)
+        else:
+            response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME)
+        for obj in response.get('Contents', []):
+            files.append(obj['Key'])
+        if response.get('IsTruncated'):
+            continuation_token = response.get('NextContinuationToken')
+        else:
+            break
+    return {"files": files}
+ 
